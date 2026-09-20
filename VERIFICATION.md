@@ -78,3 +78,32 @@ lake env lean Main.lean
 ```
 
 The same three steps run in GitHub Actions on every push (`.github/workflows/ci.yml`).
+
+## Independent audit bridge (`Audit.lean`)
+
+The official `lean-verify` self-check asks for "a minimal target statement and
+`example : IntendedStatement := ...` in a separate audit file, connecting it to
+the submitted theorem". `Audit.lean` supplies this. It does two separate things:
+
+1. **Independent restatement and re-verification.** The target is re-written from
+   the original source in a deliberately *different* formulation: proper
+   2-colourability is stated in existential form ("every edge contains a vertex
+   of each colour"), whereas `Main.lean` states it in negated-universal form
+   ("no edge is monochromatic"). The witness `H834` is then re-verified from
+   scratch under these definitions by kernel computation. No theorem of
+   `Main.lean` is used for this.
+2. **Bridge to the submitted theorem.** `twoColorable_iff_twoCol` proves the two
+   colourability formulations equivalent, and `submitted_theorem_yields_intended`
+   transports `Erdos834.erdos_834_exists` to the audit's `IntendedStatement`.
+   This is what licenses reading the submitted theorem as a solution of the
+   original problem.
+
+Axioms for every bridge theorem: `[propext, Classical.choice, Quot.sound]`.
+No `sorry`, no `admit`, no custom axiom, no `native_decide`.
+
+Reproduce with:
+
+```bash
+lake build Main Audit
+lake env lean Audit.lean
+```

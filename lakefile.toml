@@ -1,6 +1,6 @@
 name = "JSP-000690-Lean"
 version = "0.1.0"
-defaultTargets = ["Main"]
+defaultTargets = ["Main", "Audit"]
 
 [[require]]
 name = "mathlib"
@@ -9,3 +9,6 @@ rev = "v4.34.0"
 
 [[lean_lib]]
 name = "Main"
+
+[[lean_lib]]
+name = "Audit"

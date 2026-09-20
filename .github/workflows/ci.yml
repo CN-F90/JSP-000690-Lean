@@ -1,4 +1,4 @@
-name: Lean verification (Main)
+name: Lean verification (Main + Audit)
 
 # Self-contained reproducible build. The earlier `leanprover/lean-action@v1`
 # workflow aborted with "No lake-manifest.json found" before elaborating any
@@ -58,7 +58,7 @@ jobs:
         run: lake exe cache get || echo "cache unavailable - will compile from source"
 
       - name: lake build
-        run: lake build Main
+        run: lake build Main Audit
 
       - name: Axiom audit (#print axioms)
         run: |
@@ -81,12 +81,39 @@ jobs:
 
           echo "OK: axiom audit passed for all target theorems."
 
+      - name: Axiom audit — independent bridge (Audit.lean)
+        run: |
+          OUT=$(lake env lean Audit.lean 2>&1)
+          echo "$OUT"
+          if echo "$OUT" | grep -q 'sorryAx'; then
+            echo "ERROR: 'sorryAx' present in Audit.lean."
+            exit 1
+          fi
+          EXPECTED="'Audit834.submitted_theorem_yields_intended' depends on axioms: [propext, Classical.choice, Quot.sound]"
+          if ! echo "$OUT" | grep -qF "$EXPECTED"; then
+            echo "ERROR: unexpected axiom set for Audit834.submitted_theorem_yields_intended."
+            exit 1
+          fi
+          EXPECTED="'Audit834.audit_not_twoCol' depends on axioms: [propext, Classical.choice, Quot.sound]"
+          if ! echo "$OUT" | grep -qF "$EXPECTED"; then
+            echo "ERROR: unexpected axiom set for Audit834.audit_not_twoCol."
+            exit 1
+          fi
+          echo "OK: axiom audit passed for the independent bridge."
+
       - name: Reject forbidden placeholders (sorry / admit / axiom / unsafe)
         run: python3 scripts/check_no_placeholders.py
 
       - name: Confirm the artifact actually compiled (olean present)
         run: |
           f=$(find .lake/build -path "*/lib/lean/Main.olean" | head -1)
+          g=$(find .lake/build -path "*/lib/lean/Audit.olean" | head -1)
+          if [ -z "$g" ] || [ ! -s "$g" ]; then
+            echo "ERROR: Audit.olean NOT found under .lake/build/lib/lean/."
+            exit 1
+          fi
+          echo "OK: $g built."
+
           if [ -n "$f" ] && [ -s "$f" ]; then
             echo "OK: $f built ($(stat -c%s "$f") bytes)."
           else
